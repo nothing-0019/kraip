@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KRAIP</title>
+<style>
+  :root { --bg:#0f1115; --panel:#181b22; --line:#262a33; --text:#e8eaf0; --muted:#8b93a3; --accent:#6c8cff; --good:#3ecf8e; --warm:#f5a623; --bad:#ef5b5b; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--text); }
+  header { display:flex; align-items:center; gap:14px; padding:12px 18px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  header h1 { margin:0; font-size:18px; letter-spacing:.12em; } header h1 span { color:var(--accent); }
+  select,input,textarea,button { font:inherit; color:inherit; }
+  select,input,textarea { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:9px 11px; width:100%; }
+  input[type=checkbox] { width:auto; }
+  textarea { min-height:70px; resize:vertical; }
+  button { background:var(--accent); color:#fff; border:0; border-radius:8px; padding:9px 16px; cursor:pointer; font-weight:600; }
+  button.ghost { background:transparent; border:1px solid var(--line); color:var(--text); }
+  button.small { padding:4px 10px; font-size:13px; }
+  button:disabled { opacity:.5; cursor:wait; }
+  nav { display:flex; gap:2px; padding:0 14px; border-bottom:1px solid var(--line); overflow-x:auto; }
+  nav button { background:none; color:var(--muted); border-radius:0; border-bottom:2px solid transparent; padding:12px 12px; white-space:nowrap; }
+  nav button.on { color:var(--text); border-color:var(--accent); }
+  main { max-width:1000px; margin:0 auto; padding:18px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:16px; }
+  label { display:block; font-size:12px; color:var(--muted); margin:12px 0 4px; text-transform:uppercase; letter-spacing:.06em; }
+  .row { display:flex; gap:12px; flex-wrap:wrap; } .row > * { flex:1; min-width:180px; }
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:12px; margin-bottom:16px; }
+  .stat { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px; }
+  .stat b { display:block; font-size:24px; } .stat span { color:var(--muted); font-size:12px; }
+  table { width:100%; border-collapse:collapse; font-size:14px; } th,td { text-align:left; padding:9px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); font-weight:500; font-size:12px; text-transform:uppercase; }
+  .pill { padding:2px 10px; border-radius:99px; font-size:12px; font-weight:600; display:inline-block; }
+  .hot,.low,.needs_human,.off { background:#3a1d1d; color:var(--bad); } .warm,.medium { background:#3a2e14; color:var(--warm); }
+  .high,.active,.on { background:#143a2a; color:var(--good); } .unqualified,.draft,.open,.closed,.unverified,.done,.paused,.running { background:#23262e; color:var(--muted); }
+  .chat { height:380px; overflow-y:auto; display:flex; flex-direction:column; gap:10px; padding:4px; }
+  .msg { max-width:80%; padding:10px 13px; border-radius:14px; white-space:pre-wrap; }
+  .msg.user { align-self:flex-end; background:var(--accent); } .msg.assistant { align-self:flex-start; background:#232733; } .msg.human { border:1px solid var(--good); }
+  .meta { font-size:11px; color:var(--muted); margin-top:4px; display:flex; gap:8px; align-items:center; }
+  .meta button { padding:0 6px; background:none; border:1px solid var(--line); color:var(--muted); font-size:12px; }
+  .hidden { display:none !important; } .muted { color:var(--muted); } .err { color:var(--bad); } .ok { color:var(--good); }
+  .note { font-size:13px; color:var(--muted); background:#14171d; border-left:3px solid var(--warm); padding:8px 12px; border-radius:6px; margin:10px 0; }
+  .login { max-width:360px; margin:12vh auto; } .login h1 { text-align:center; letter-spacing:.14em; }
+  code { background:#14171d; padding:2px 6px; border-radius:5px; font-size:13px; word-break:break-all; }
+  .src { font-size:13px; margin:4px 0; } a { color:var(--accent); }
+</style>
+</head>
+<body>
+
+<div id="loginView" class="login hidden">
+  <h1>KR<span style="color:var(--accent)">AI</span>P</h1>
+  <div class="card">
+    <label>Email</label><input id="l_email" type="email" autocomplete="username">
+    <label>Password (min 8 characters)</label><input id="l_pw" type="password" autocomplete="current-password">
+    <label id="l_name_label" class="hidden">Your name</label><input id="l_name" class="hidden">
+    <div style="display:flex;gap:8px;margin-top:16px"><button id="loginBtn" style="flex:1">Log in</button><button id="signupBtn" class="ghost" style="flex:1">Sign up</button></div>
+    <div id="loginErr" class="err" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<div id="appView" class="hidden">
+<header>
+  <h1>KR<span>AI</span>P</h1>
+  <div style="width:220px"><select id="bizSelect"></select></div>
+  <span id="status" class="muted"></span>
+  <span style="flex:1"></span>
+  <span class="muted" id="who"></span><button class="ghost small" id="logoutBtn">Log out</button>
+</header>
+<nav id="tabs">
+  <button data-tab="dashboard" class="on">Dashboard</button>
+  <button data-tab="twin">Business Twin</button>
+  <button data-tab="employees">AI Employees</button>
+  <button data-tab="chat">Chat &amp; Voice</button>
+  <button data-tab="inbox">Inbox</button>
+  <button data-tab="leads">Leads</button>
+  <button data-tab="research">Research</button>
+  <button data-tab="campaigns">Campaigns</button>
+  <button data-tab="billing">Billing</button>
+</nav>
+<main>
+
+<section id="dashboard">
+  <div class="stats" id="stats"></div>
+  <div class="card"><b>System status</b><div id="sys" style="margin-top:8px"></div><div id="phoneHelp" class="note hidden"></div></div>
+  <div class="card"><b>Your own AI data</b>
+    <p class="muted">Rate employee replies with 👍 in Chat. Good replies become training data for fine-tuning your own model. Only use conversations you are allowed to train on.</p>
+    <button class="ghost" onclick="download('/api/export/finetune.jsonl?business_id='+bizId,'kraip-finetune.jsonl')">Download fine-tune data (.jsonl)</button>
+  </div>
+</section>
+
+<section id="twin" class="hidden">
+  <div class="card">
+    <h3 style="margin-top:0" id="twinTitle">New business</h3>
+    <label>Business name</label><input id="b_name">
+    <label>What the business does</label><textarea id="b_description"></textarea>
+    <label>Services &amp; pricing</label><textarea id="b_services"></textarea>
+    <label>FAQs</label><textarea id="b_faqs"></textarea>
+    <div class="row"><div><label>Policies</label><textarea id="b_policies"></textarea></div><div><label>Opening hours</label><textarea id="b_hours"></textarea></div></div>
+    <div class="row"><div><label>Tone</label><input id="b_tone" value="friendly and professional"></div>
+    <div><label>Human handoff phone (calls are transferred here)</label><input id="b_handoff_number" placeholder="+919876543210"></div></div>
+    <div style="margin-top:14px;display:flex;gap:8px"><button id="saveBiz">Save business</button><button class="ghost" id="newBiz">+ New</button></div>
+    <div id="versions" class="muted" style="margin-top:10px;font-size:13px"></div>
+  </div>
+</section>
+
+<section id="employees" class="hidden">
+  <div class="card">
+    <h3 style="margin-top:0">Create AI employee</h3>
+    <div class="row"><div><label>Name</label><input id="e_name" placeholder="Aria"></div><div><label>Role</label><input id="e_role" value="Sales assistant"></div>
+    <div><label>Voice language</label><select id="e_language"><option value="en-IN">English (India)</option><option value="hi-IN">Hindi</option><option value="ta-IN">Tamil</option><option value="te-IN">Telugu</option><option value="kn-IN">Kannada</option><option value="ml-IN">Malayalam</option><option value="bn-IN">Bengali</option><option value="mr-IN">Marathi</option><option value="gu-IN">Gujarati</option><option value="pa-IN">Punjabi</option></select></div>
+    <div><label>Phone voice</label><select id="e_voice"><option value="">Default</option><option value="priya">Priya (female)</option><option value="kavya">Kavya (female)</option><option value="ritu">Ritu (female)</option><option value="neha">Neha (female)</option><option value="shubh">Shubh (male)</option><option value="rahul">Rahul (male)</option><option value="amit">Amit (male)</option><option value="rohan">Rohan (male)</option></select></div></div>
+    <label>Greeting (optional, spoken first on calls)</label><input id="e_greeting">
+    <label>Extra instructions</label><textarea id="e_instructions"></textarea>
+    <label>Qualification questions (one per line)</label>
+    <textarea id="e_questions">What are you looking for?
+What is your budget?
+When do you need it?</textarea>
+    <label><input type="checkbox" id="e_research" checked> Allow live web research</label>
+    <div style="margin-top:14px"><button id="saveEmp">Create employee (draft)</button></div>
+  </div>
+  <div class="card" style="overflow-x:auto"><table id="empTable"></table></div>
+</section>
+
+<section id="chat" class="hidden">
+  <div class="card">
+    <div class="row"><select id="empSelect"></select><button class="ghost" id="newConv" style="flex:0 0 auto">New conversation</button></div>
+    <div class="chat" id="chatBox" style="margin-top:12px"></div>
+    <div class="row" style="margin-top:12px;flex-wrap:nowrap">
+      <input id="chatInput" placeholder="Type as a customer..." style="flex:1">
+      <button id="micBtn" class="ghost" style="flex:0 0 auto" title="Speak">🎤</button>
+      <button id="send" style="flex:0 0 auto">Send</button>
+    </div>
+    <label style="margin-top:12px"><input type="checkbox" id="voiceMode"> Voice mode: talk hands-free, the employee answers out loud</label>
+    <div id="voiceNote" class="note hidden"></div>
+    <div id="leadBox" class="muted" style="margin-top:10px"></div>
+  </div>
+</section>
+
+<section id="inbox" class="hidden">
+  <div class="card" style="overflow-x:auto"><div style="display:flex;justify-content:space-between;align-items:center"><b>Conversations</b><button class="ghost small" onclick="loadInbox()">Refresh</button></div><table id="inboxTable"></table></div>
+  <div class="card hidden" id="inboxDetail">
+    <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b id="inboxTitle"></b>
+      <span><button class="ghost small" id="resumeBtn">Hand back to AI</button> <button class="ghost small" id="closeBtn">Close &amp; summarise</button></span></div>
+    <div id="inboxSummary" class="muted" style="margin:8px 0"></div>
+    <div class="chat" id="inboxChat" style="height:300px"></div>
+    <div class="row" style="margin-top:10px;flex-wrap:nowrap"><input id="humanInput" placeholder="Reply as a human on your team..."><button id="humanSend" style="flex:0 0 auto">Send</button></div>
+    <div class="muted" style="font-size:12px;margin-top:6px">Replies appear in the customer's web chat. Phone calls are transferred live to your handoff number.</div>
+  </div>
+</section>
+
+<section id="leads" class="hidden">
+  <div class="card" style="overflow-x:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b>Leads</b>
+      <button class="ghost" onclick="download('/api/leads.csv?business_id='+bizId,'kraip-leads.csv')">Export CSV</button></div>
+    <table id="leadTable"></table>
+  </div>
+  <div class="card">
+    <b>Find new prospects from public sources</b>
+    <div class="row"><div><label>Who to find</label><input id="d_query" placeholder="dental clinics"></div><div><label>Where</label><input id="d_location" placeholder="Chennai"></div>
+    <div><label>Must mention (comma separated)</label><input id="d_reqs" placeholder="whitening, implants"></div></div>
+    <div style="margin-top:12px"><button id="discoverBtn">Search</button></div>
+    <div class="note">Only contact details published on the business's own page are saved, with the source link. A public phone number is not permission for automated marketing calls.</div>
+    <div style="overflow-x:auto"><table id="prospectTable"></table></div>
+  </div>
+</section>
+
+<section id="research" class="hidden">
+  <div class="card">
+    <b>Live web research</b>
+    <div class="row" style="margin-top:8px;flex-wrap:nowrap"><input id="r_query" placeholder="e.g. average teeth whitening price in Chennai"><button id="researchBtn" style="flex:0 0 auto">Research</button></div>
+    <div id="researchOut" style="margin-top:14px"></div>
+  </div>
+  <div class="card"><b>Past reports</b><div id="researchHistory" style="margin-top:8px"></div></div>
+</section>
+
+<section id="campaigns" class="hidden">
+  <div class="card">
+    <b>1. Contacts &amp; consent</b>
+    <p class="muted">One per line: <code>name,phone,yes,where consent was given</code>. A contact only counts as consented if it says <b>yes</b> and gives the source (e.g. "signup form 12 Oct").</p>
+    <textarea id="csvBox" placeholder="Ravi,9876543210,yes,signup form 12 Oct&#10;Meena,9123456780,no,"></textarea>
+    <div style="margin-top:10px"><button id="importBtn">Import contacts</button> <span id="importOut" class="muted"></span></div>
+    <div style="overflow-x:auto;margin-top:10px"><table id="contactTable"></table></div>
+  </div>
+  <div class="card">
+    <b>2. Create a campaign</b>
+    <div class="row"><div><label>Employee</label><select id="c_emp"></select></div><div><label>Name</label><input id="c_name"></div><div><label>Goal</label><input id="c_goal" placeholder="Book consultations"></div></div>
+    <div class="row"><div><label>Max attempts per contact</label><input id="c_attempts" type="number" value="2" min="1" max="5"></div>
+    <div><label>Call window start (hour)</label><input id="c_start" type="number" value="9" min="0" max="23"></div><div><label>Call window end (hour)</label><input id="c_end" type="number" value="20" min="1" max="24"></div></div>
+    <div style="margin-top:12px"><button id="campaignBtn">Create campaign</button></div>
+    <div class="note">Only consented, not-opted-out contacts are enrolled. Calls identify as AI, offer to stop, and run only inside the window. Check your local rules (for India, scrub numbers against the DND registry) before running outbound campaigns.</div>
+  </div>
+  <div class="card" style="overflow-x:auto"><b>Campaigns</b><table id="campaignTable"></table><pre id="dryOut" class="muted" style="white-space:pre-wrap"></pre></div>
+</section>
+
+<section id="billing" class="hidden">
+  <div class="card">
+    <div class="row" style="align-items:flex-end"><div><label>Month</label><input id="bill_month" type="month"></div><div><button id="billLoad">Show usage</button></div><div><button class="ghost" id="invoiceBtn">Create invoice</button></div></div>
+    <table id="usageTable" style="margin-top:12px"></table>
+  </div>
+  <div class="card" style="overflow-x:auto"><b>Invoices</b><table id="invoiceTable"></table></div>
+</section>
+
+</main>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+const inr = (paise) => "₹" + (paise / 100).toFixed(2);
+const pill = (v) => `<span class="pill ${esc(v)}">${esc(String(v).replace("_", " "))}</span>`;
+
+let token = localStorage.getItem("kraip_token");
+let businesses = [], employees = [], bizId = null, convId = null, editingBiz = null, sys = {}, inboxConv = null;
+
+async function api(url, method = "GET", body) {
+  const res = await fetch(url, { method, headers: { "Content-Type": "application/json", ...(token ? { Authorization: "Bearer " + token } : {}) }, body: body ? JSON.stringify(body) : undefined });
+  const data = await res.json().catch(() => ({}));
+  if (res.status === 401 && token) { logout(false); throw new Error("Please log in again"); }
+  if (!res.ok) throw new Error(data.error || res.statusText);
+  return data;
+}
+async function download(url, filename) {
+  try {
+    const res = await fetch(url, { headers: { Authorization: "Bearer " + token } });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Download failed");
+    const a = document.createElement("a"); a.href = URL.createObjectURL(await res.blob()); a.download = filename; a.click();
+  } catch (e) { flash(e.message, true); }
+}
+function flash(msg, bad) { $("status").textContent = msg; $("status").className = bad ? "err" : "ok"; setTimeout(() => ($("status").textContent = ""), 4000); }
+
+// ---------- login ----------
+function showLogin() { $("loginView").classList.remove("hidden"); $("appView").classList.add("hidden"); }
+async function auth(path) {
+  $("loginErr").textContent = "";
+  try {
+    const r = await api(path, "POST", { email: $("l_email").value, password: $("l_pw").value, name: $("l_name").value });
+    token = r.token; localStorage.setItem("kraip_token", token); start();
+  } catch (e) { $("loginErr").textContent = e.message; }
+}
+$("loginBtn").onclick = () => auth("/auth/login");
+$("signupBtn").onclick = () => {
+  if ($("l_name").classList.contains("hidden")) { $("l_name").classList.remove("hidden"); $("l_name_label").classList.remove("hidden"); return; }
+  auth("/auth/signup");
+};
+function logout(callApi = true) { if (callApi && token) api("/auth/logout", "POST").catch(() => {}); token = null; localStorage.removeItem("kraip_token"); showLogin(); }
+$("logoutBtn").onclick = () => logout();
+
+// ---------- tabs ----------
+$("tabs").addEventListener("click", (e) => {
+  const t = e.target.dataset.tab; if (!t) return;
+  document.querySelectorAll("nav button").forEach((b) => b.classList.toggle("on", b.dataset.tab === t));
+  document.querySelectorAll("main > section").forEach((s) => s.classList.toggle("hidden", s.id !== t));
+  refresh();
+});
+
+// ---------- businesses ----------
+async function loadBusinesses() {
+  businesses = await api("/api/businesses");
+  if (!bizId || !businesses.find((b) => b.id === bizId)) bizId = businesses[0]?.id ?? null;
+  $("bizSelect").innerHTML = businesses.length ? businesses.map((b) => `<option value="${b.id}" ${b.id === bizId ? "selected" : ""}>${esc(b.name)}</option>`).join("") : `<option>No business yet</option>`;
+}
+$("bizSelect").onchange = (e) => { bizId = Number(e.target.value); convId = null; $("chatBox").innerHTML = ""; fillBiz(); refresh(); };
+const BIZ = ["name", "description", "services", "faqs", "policies", "hours", "tone", "handoff_number"];
+function fillBiz() {
+  const b = businesses.find((x) => x.id === bizId); editingBiz = b?.id ?? null;
+  $("twinTitle").textContent = b ? `Edit: ${b.name} (version ${b.version})` : "New business";
+  BIZ.forEach((k) => ($("b_" + k).value = b ? b[k] ?? "" : k === "tone" ? "friendly and professional" : ""));
+  if (b) api(`/api/businesses/${b.id}/versions`).then((v) => ($("versions").textContent = v.length ? `Previous versions saved: ${v.map((x) => "v" + x.version).join(", ")}` : "")).catch(() => {});
+}
+$("newBiz").onclick = () => { editingBiz = null; $("twinTitle").textContent = "New business"; BIZ.forEach((k) => ($("b_" + k).value = k === "tone" ? "friendly and professional" : "")); };
+$("saveBiz").onclick = async () => {
+  const body = Object.fromEntries(BIZ.map((k) => [k, $("b_" + k).value]));
+  try { const s = editingBiz ? await api(`/api/businesses/${editingBiz}`, "PUT", body) : await api("/api/businesses", "POST", body);
+    bizId = s.id; await loadBusinesses(); fillBiz(); flash("Saved"); } catch (e) { flash(e.message, true); }
+};
+
+// ---------- employees ----------
+async function loadEmployees() {
+  employees = bizId ? await api(`/api/employees?business_id=${bizId}`) : [];
+  $("empTable").innerHTML = `<tr><th>Name</th><th>Role</th><th>Language</th><th>Research</th><th>Status</th><th>Phone webhook / web chat link</th><th></th></tr>` +
+    employees.map((e) => `<tr><td>${esc(e.name)}</td><td>${esc(e.role)}</td><td>${esc(e.language)}</td><td>${e.research_enabled ? "on" : "off"}</td><td>${pill(e.status)}</td>
+    <td class="muted" style="font-size:12px">${sys.public_url && sys.webhook_paths?.[e.id] ? `Phone answer URL: <code>${esc(sys.public_url + sys.webhook_paths[e.id])}</code><br>` : ""}Web chat: <code>/widget.html?e=${e.id}</code></td>
+    <td>${e.status === "draft" ? `<button class="small ghost" onclick="setStatus(${e.id},'activate')">Activate</button>` : `<button class="small ghost" onclick="setStatus(${e.id},'draft')">Pause</button>`}</td></tr>`).join("");
+  const opts = employees.map((e) => `<option value="${e.id}">${esc(e.name)} (${esc(e.status)})</option>`).join("");
+  $("empSelect").innerHTML = opts; $("c_emp").innerHTML = opts;
+}
+window.setStatus = async (id, a) => { await api(`/api/employees/${id}/${a}`, "POST"); loadEmployees(); };
+$("saveEmp").onclick = async () => {
+  if (!bizId) return flash("Create a business first", true);
+  try {
+    await api("/api/employees", "POST", { business_id: bizId, name: $("e_name").value, role: $("e_role").value, language: $("e_language").value, voice: $("e_voice").value, greeting: $("e_greeting").value,
+      instructions: $("e_instructions").value, qualification_questions: $("e_questions").value, research_enabled: $("e_research").checked ? 1 : 0 });
+    $("e_name").value = ""; await loadEmployees(); flash("Employee created (draft). Activate it to take real customers.");
+  } catch (e) { flash(e.message, true); }
+};
+
+// ---------- chat + browser voice ----------
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const curLang = () => employees.find((e) => e.id === Number($("empSelect").value))?.language || "en-IN";
+if (!SR) { $("micBtn").disabled = true; $("voiceNote").textContent = "Voice input needs Chrome, Edge or Android Chrome. Typing still works."; $("voiceNote").classList.remove("hidden"); }
+
+function addMsg(box, role, text, extra = {}) {
+  const wrap = document.createElement("div"); wrap.style.cssText = `display:flex;flex-direction:column;align-items:${role === "user" ? "flex-end" : "flex-start"}`;
+  wrap.innerHTML = `<div class="msg ${role} ${extra.human ? "human" : ""}">${esc(text)}</div>` + (extra.id
+    ? `<div class="meta">${esc(extra.model || "")} ${extra.latency ? "· " + extra.latency + "ms" : ""}<button onclick="rate(${extra.id},1,this)">👍</button><button onclick="rate(${extra.id},-1,this)">👎</button></div>` : extra.human ? `<div class="meta">human</div>` : "");
+  box.appendChild(wrap); box.scrollTop = box.scrollHeight;
+}
+window.rate = async (id, r, btn) => { await api(`/api/messages/${id}/rating`, "POST", { rating: r }); btn.parentElement.querySelectorAll("button").forEach((b) => (b.style.opacity = b === btn ? 1 : .35)); };
+
+function listen(lang) {
+  return new Promise((resolve, reject) => {
+    const r = new SR(); r.lang = lang; r.interimResults = false; r.maxAlternatives = 1;
+    r.onresult = (e) => resolve(e.results[0][0].transcript); r.onerror = (e) => reject(new Error(e.error)); r.onend = () => resolve("");
+    r.start();
+  });
+}
+function speak(text, lang) {
+  return new Promise((resolve) => {
+    if (!window.speechSynthesis) return resolve();
+    const u = new SpeechSynthesisUtterance(text); u.lang = lang; u.onend = u.onerror = resolve; speechSynthesis.cancel(); speechSynthesis.speak(u);
+  });
+}
+
+async function newConversation() {
+  const employee_id = Number($("empSelect").value);
+  if (!employee_id) { flash("Create an employee first", true); return false; }
+  convId = (await api("/api/conversations", "POST", { employee_id })).id;
+  $("chatBox").innerHTML = ""; $("leadBox").textContent = ""; return true;
+}
+$("newConv").onclick = newConversation;
+
+async function send(textOverride) {
+  const text = (textOverride ?? $("chatInput").value).trim(); if (!text) return null;
+  if (!convId && !(await newConversation())) return null;
+  $("chatInput").value = ""; addMsg($("chatBox"), "user", text); $("send").disabled = true;
+  let reply = null;
+  try {
+    const r = await api(`/api/conversations/${convId}/messages`, "POST", { content: text });
+    reply = r.reply;
+    if (r.reply) addMsg($("chatBox"), "assistant", r.reply, { id: r.messageId, model: r.model, latency: r.latencyMs });
+    else addMsg($("chatBox"), "assistant", "(A human has taken over this conversation. See the Inbox tab.)");
+    let info = "";
+    if (r.handoff) info += `<span class="pill needs_human">handed to human</span> `;
+    if (r.optOut) info += `<span class="pill off">opted out of contact</span> `;
+    if (r.research) info += `Research used (confidence ${pill(r.research.confidence)}): ` + r.research.sources.map((s) => `<a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">[${s.n}]</a>`).join(" ") + "<br>";
+    if (r.lead) info += `Lead: ${pill(r.lead.score)} ${esc(r.lead.name || "unknown")} · ${esc(r.lead.need || "need not stated")} → ${esc(r.lead.next_action)}`;
+    $("leadBox").innerHTML = info;
+  } catch (e) { addMsg($("chatBox"), "assistant", "⚠ " + e.message); }
+  $("send").disabled = false; $("chatInput").focus(); return reply;
+}
+$("send").onclick = () => send();
+$("chatInput").onkeydown = (e) => e.key === "Enter" && send();
+
+async function voiceLoop() {
+  while ($("voiceMode").checked) {
+    let heard = "";
+    try { $("micBtn").textContent = "🔴"; heard = await listen(curLang()); } catch (e) { flash("Mic: " + e.message, true); $("voiceMode").checked = false; break; }
+    $("micBtn").textContent = "🎤";
+    if (!heard) continue;
+    const reply = await send(heard);
+    if (reply) await speak(reply, curLang());
+  }
+}
+$("voiceMode").onchange = () => { if ($("voiceMode").checked && SR) voiceLoop(); else speechSynthesis.cancel(); };
+$("micBtn").onclick = async () => {
+  try { $("micBtn").textContent = "🔴"; const t = await listen(curLang()); $("micBtn").textContent = "🎤"; if (t) $("chatInput").value = t; } catch (e) { $("micBtn").textContent = "🎤"; flash("Mic: " + e.message, true); }
+};
+
+// ---------- inbox ----------
+async function loadInbox() {
+  if (!bizId) return;
+  const rows = await api(`/api/conversations?business_id=${bizId}`);
+  $("inboxTable").innerHTML = `<tr><th>#</th><th>Channel</th><th>Employee</th><th>Status</th><th>Intent</th><th>Mood</th><th>Msgs</th><th>Summary</th><th></th></tr>` +
+    (rows.map((c) => `<tr><td>${c.id}</td><td>${esc(c.channel)}${c.channel === "phone" ? " (" + esc(c.direction) + ")" : ""}</td><td>${esc(c.employee_name)}</td><td>${pill(c.status)}</td>
+      <td>${esc(c.intent || "")}</td><td>${esc(c.sentiment || "")}</td><td>${c.message_count}</td><td class="muted">${esc(c.summary || "")}</td>
+      <td><button class="small ghost" onclick="openConv(${c.id})">Open</button></td></tr>`).join("") || `<tr><td colspan="9" class="muted">No conversations yet.</td></tr>`);
+}
+window.loadInbox = loadInbox;
+window.openConv = async (id) => {
+  inboxConv = id; const d = await api(`/api/conversations/${id}/messages`);
+  $("inboxDetail").classList.remove("hidden");
+  $("inboxTitle").innerHTML = `Conversation #${id} ${pill(d.conversation.status)}`;
+  $("inboxSummary").textContent = d.conversation.summary || (d.lead ? `Lead: ${d.lead.score} · ${d.lead.need || ""}` : "");
+  $("inboxChat").innerHTML = ""; d.messages.forEach((m) => addMsg($("inboxChat"), m.role, m.content, { human: m.by_human }));
+};
+$("humanSend").onclick = async () => { const c = $("humanInput").value.trim(); if (!c || !inboxConv) return; await api(`/api/conversations/${inboxConv}/human-reply`, "POST", { content: c }); $("humanInput").value = ""; openConv(inboxConv); };
+$("resumeBtn").onclick = async () => { await api(`/api/conversations/${inboxConv}/resume-ai`, "POST"); openConv(inboxConv); loadInbox(); };
+$("closeBtn").onclick = async () => { $("closeBtn").disabled = true; try { await api(`/api/conversations/${inboxConv}/close`, "POST"); } catch (e) { flash(e.message, true); } $("closeBtn").disabled = false; openConv(inboxConv); loadInbox(); };
+
+// ---------- leads + discovery ----------
+async function loadLeads() {
+  if (!bizId) return;
+  const leads = await api(`/api/leads?business_id=${bizId}`);
+  $("leadTable").innerHTML = `<tr><th>Score</th><th>Name</th><th>Contact</th><th>Need</th><th>Budget</th><th>Timeline</th><th>Source</th><th>Next action</th></tr>` +
+    (leads.map((l) => `<tr><td>${pill(l.score)}</td><td>${esc(l.name)}</td><td>${esc(l.phone || l.email)}</td><td>${esc(l.need)}</td><td>${esc(l.budget)}</td><td>${esc(l.timeline)}</td>
+      <td>${esc(l.source)}${l.source_url ? ` <a href="${esc(l.source_url)}" target="_blank" rel="noopener noreferrer">link</a>` : ""}</td><td>${esc(l.next_action)}</td></tr>`).join("") || `<tr><td colspan="8" class="muted">No leads yet.</td></tr>`);
+  const ps = await api(`/api/prospects?business_id=${bizId}`);
+  $("prospectTable").innerHTML = ps.length ? `<tr><th>Name</th><th>Match</th><th>Phone</th><th>Email</th><th>Source (retrieved)</th><th></th></tr>` +
+    ps.map((p) => `<tr><td>${esc(p.name)}</td><td>${Math.round((p.relevance || 0) * 100)}% ${esc(p.matched_terms)}</td><td>${esc(p.phone)}</td><td>${esc(p.email)}</td>
+      <td><a href="${esc(p.source_url)}" target="_blank" rel="noopener noreferrer">${esc(p.domain)}</a> <span class="muted">${esc((p.retrieved_at || "").slice(0, 10))}</span></td>
+      <td>${p.status === "converted" ? pill("converted") : `<button class="small ghost" onclick="toLead(${p.id})">→ Lead</button>`}</td></tr>`).join("") : "";
+}
+window.toLead = async (id) => { await api(`/api/prospects/${id}/to-lead`, "POST"); loadLeads(); };
+$("discoverBtn").onclick = async () => {
+  $("discoverBtn").disabled = true;
+  try { const r = await api("/api/discovery", "POST", { business_id: bizId, query: $("d_query").value, location: $("d_location").value, requirements: $("d_reqs").value });
+    flash(`${r.added.length} new, ${r.duplicates.length} already known`); loadLeads(); } catch (e) { flash(e.message, true); }
+  $("discoverBtn").disabled = false;
+};
+
+// ---------- research ----------
+function renderReport(r) {
+  return `<div>${pill(r.confidence)} confidence</div><p style="white-space:pre-wrap">${esc(r.answer)}</p>` +
+    (r.uncertain?.length ? `<div class="note"><b>Not certain:</b><br>${r.uncertain.map(esc).join("<br>")}</div>` : "") +
+    `<div class="muted" style="font-size:13px">Sources</div>` + r.sources.map((s) => `<div class="src">[${s.n}] <a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.title)}</a> <span class="muted">retrieved ${esc((s.retrieved_at || "").slice(0, 10))}${s.fetched ? "" : " (snippet only)"}</span></div>`).join("");
+}
+async function loadResearch() {
+  if (!bizId) return;
+  const rows = await api(`/api/research?business_id=${bizId}`);
+  $("researchHistory").innerHTML = rows.map((r) => `<details style="margin-bottom:8px"><summary>${esc(r.query)} <span class="muted">${esc(r.created_at)}</span></summary>${renderReport(r)}</details>`).join("") || `<span class="muted">None yet.</span>`;
+}
+$("researchBtn").onclick = async () => {
+  $("researchBtn").disabled = true; $("researchOut").innerHTML = `<span class="muted">Searching and reading sources...</span>`;
+  try { $("researchOut").innerHTML = renderReport(await api("/api/research", "POST", { business_id: bizId, query: $("r_query").value })); loadResearch(); }
+  catch (e) { $("researchOut").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+  $("researchBtn").disabled = false;
+};
+
+// ---------- contacts + campaigns ----------
+async function loadCampaigns() {
+  if (!bizId) return;
+  const cs = await api(`/api/contacts?business_id=${bizId}`);
+  $("contactTable").innerHTML = cs.length ? `<tr><th>Name</th><th>Phone</th><th>Consent</th><th>Source</th><th></th></tr>` + cs.map((c) => `<tr><td>${esc(c.name)}</td><td>${esc(c.phone)}</td>
+    <td>${c.opted_out ? pill("off") + " opted out" : c.consent ? pill("on") + " yes" : "no"}</td><td class="muted">${esc(c.consent_source)}</td>
+    <td>${c.opted_out ? "" : `<button class="small ghost" onclick="optOut(${c.id})">Opt out</button>`}</td></tr>`).join("") : "";
+  const camps = await api(`/api/campaigns?business_id=${bizId}`);
+  $("campaignTable").innerHTML = `<tr><th>Name</th><th>Status</th><th>Progress</th><th></th></tr>` + (camps.map((c) => `<tr><td>${esc(c.name)}<div class="muted" style="font-size:12px">${esc(c.goal)} · ${c.window_start}:00-${c.window_end}:00 · max ${c.max_attempts} tries</div></td><td>${pill(c.status)}</td>
+    <td class="muted" style="font-size:13px">${c.progress.completed} done · ${c.progress.calling} calling · ${c.progress.pending} pending · ${c.progress.no_answer} no answer · ${c.progress.skipped} skipped</td>
+    <td><button class="small ghost" onclick="dryRun(${c.id})">Dry run</button> <button class="small" onclick="campAct(${c.id},'start')">Start</button> <button class="small ghost" onclick="campAct(${c.id},'pause')">Pause</button></td></tr>`).join("") || `<tr><td colspan="4" class="muted">No campaigns yet.</td></tr>`);
+}
+window.optOut = async (id) => { await api(`/api/contacts/${id}/opt-out`, "POST"); loadCampaigns(); };
+window.dryRun = async (id) => { const d = await api(`/api/campaigns/${id}/dry-run`); $("dryOut").textContent = `Dry run (nothing is dialled). Inside call window now: ${d.in_call_window} (local hour ${d.local_hour})\nWould call: ${d.would_call.map((x) => x.phone).join(", ") || "none"}\nBlocked: ${d.blocked.map((x) => x.phone + " (" + x.reason + ")").join(", ") || "none"}`; };
+window.campAct = async (id, a) => { try { await api(`/api/campaigns/${id}/${a}`, "POST"); flash(a === "start" ? "Campaign started" : "Paused"); } catch (e) { flash(e.message, true); } loadCampaigns(); };
+$("importBtn").onclick = async () => { try { const r = await api("/api/contacts/import", "POST", { business_id: bizId, csv: $("csvBox").value });
+  $("importOut").textContent = `${r.imported} imported (${r.with_consent} with consent, ${r.no_consent_recorded} without), ${r.skipped_invalid} invalid, ${r.kept_opted_out} kept as opted-out`; loadCampaigns(); } catch (e) { flash(e.message, true); } };
+$("campaignBtn").onclick = async () => { try { await api("/api/campaigns", "POST", { business_id: bizId, employee_id: Number($("c_emp").value), name: $("c_name").value, goal: $("c_goal").value,
+  max_attempts: Number($("c_attempts").value), window_start: Number($("c_start").value), window_end: Number($("c_end").value) }); flash("Campaign created"); loadCampaigns(); } catch (e) { flash(e.message, true); } };
+
+// ---------- billing ----------
+$("bill_month").value = new Date().toISOString().slice(0, 7);
+async function loadBilling() {
+  if (!bizId) return;
+  const u = await api(`/api/billing/usage?business_id=${bizId}&month=${$("bill_month").value}`);
+  $("usageTable").innerHTML = `<tr><th>Item</th><th>Qty</th><th>Rate</th><th>Amount</th></tr>` + u.lines.map((l) => `<tr><td>${esc(l.label)}</td><td>${l.quantity}</td><td>${inr(l.rate_paise)}</td><td>${inr(l.amount_paise)}</td></tr>`).join("") +
+    `<tr><td colspan="3"><b>Total</b> <span class="muted">(${u.calls} calls, ${u.call_seconds}s talk time)</span></td><td><b>${inr(u.total_paise)}</b></td></tr>`;
+  const m = u.margin;
+  $("usageTable").innerHTML += m && m.calls_costed ? `<tr><td colspan="4" class="muted" style="padding-top:14px"><b>Margin on calls</b> (estimate): billed ${inr(m.call_revenue_paise)} &minus; provider cost ${inr(m.estimated_cost_paise)} = <b>${inr(m.margin_paise)}</b>${m.margin_pct !== null ? ` (${m.margin_pct}%)` : ""}<br>Cost split: phone ${inr(m.breakdown.telephony)}, speech-to-text ${inr(m.breakdown.speech_to_text)}, text-to-speech ${inr(m.breakdown.text_to_speech)}, AI ${inr(m.breakdown.llm)}. ${esc(m.note)}</td></tr>` : "";
+  const inv = await api(`/api/billing/invoices?business_id=${bizId}`);
+  $("invoiceTable").innerHTML = `<tr><th>Period</th><th>Amount</th><th>Status</th><th></th></tr>` + (inv.map((i) => `<tr><td>${esc(i.period)}</td><td>${inr(i.amount_paise)}</td><td>${pill(i.status === "paid" ? "on" : "open")} ${esc(i.status)}</td>
+    <td>${i.status === "paid" ? "" : i.pay_link ? `<a href="${esc(i.pay_link)}" target="_blank" rel="noopener noreferrer">Open pay link</a>` : `<button class="small" onclick="payLink(${i.id})">Get pay link</button>`}</td></tr>`).join("") || `<tr><td colspan="4" class="muted">No invoices yet.</td></tr>`);
+}
+$("billLoad").onclick = loadBilling;
+$("invoiceBtn").onclick = async () => { try { await api("/api/billing/invoice", "POST", { business_id: bizId, month: $("bill_month").value }); flash("Invoice created"); loadBilling(); } catch (e) { flash(e.message, true); } };
+window.payLink = async (id) => { try { await api(`/api/billing/invoices/${id}/pay-link`, "POST"); loadBilling(); } catch (e) { flash(e.message, true); } };
+
+// ---------- dashboard ----------
+async function loadStats() {
+  if (!bizId) { $("stats").innerHTML = ""; return; }
+  const s = await api(`/api/stats?business_id=${bizId}`);
+  $("stats").innerHTML = [["Conversations", s.conversations], ["Need a human", s.needs_human], ["Calls", s.calls], ["Leads", s.leads], ["Hot", s.hot], ["Warm", s.warm], ["Avg reply", s.avgLatencyMs + " ms"]]
+    .map(([k, v]) => `<div class="stat"><b>${v}</b><span>${k}</span></div>`).join("");
+  sys = await api("/api/system");
+  const chip = (label, on) => `<span class="pill ${on ? "on" : "off"}" style="margin-right:6px">${label}: ${on ? "ready" : "not set up"}</span>`;
+  $("sys").innerHTML = `<span class="pill on" style="margin-right:6px">Model: ${esc(sys.llm)}${sys.llm_fallback ? " → " + esc(sys.llm_fallback) : ""}</span>` + chip("Web research", sys.web_search) +
+    chip(`Phone calls (${sys.phone_provider})`, sys.telephony) + chip("Phone voice AI", sys.telephony && sys.voice_ai) + chip("Razorpay", sys.razorpay);
+  $("phoneHelp").classList.toggle("hidden", !sys.telephony);
+  if (sys.telephony) $("phoneHelp").innerHTML = sys.phone_provider === "plivo"
+    ? `Plivo Application: set <b>Answer URL</b> (POST) to <code>${esc(sys.public_url)}/plivo/&lt;employeeId&gt;/answer</code> and <b>Hangup URL</b> to <code>${esc(sys.public_url)}/plivo/&lt;employeeId&gt;/hangup</code>, then attach your number. Each employee's exact URL is in the Employees tab.`
+    : `Twilio number webhook ("A call comes in", POST): <code>${esc(sys.public_url)}/voice/&lt;employeeId&gt;/incoming</code>. Each employee's exact URL is in the Employees tab.`;
+}
+
+async function refresh() {
+  try { await loadBusinesses(); sys = await api("/api/system"); await Promise.all([loadStats(), loadEmployees(), loadLeads(), loadInbox(), loadResearch(), loadCampaigns(), loadBilling()]); }
+  catch (e) { if (token) flash(e.message, true); }
+}
+async function start() {
+  if (!token) return showLogin();
+  try { const me = await api("/auth/me"); $("who").textContent = me.name || me.email; } catch { return showLogin(); }
+  $("loginView").classList.add("hidden"); $("appView").classList.remove("hidden");
+  await refresh(); fillBiz();
+}
+start();
+</script>
+</body>
+</html>

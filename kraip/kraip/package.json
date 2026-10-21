@@ -1,0 +1,22 @@
+{
+  "name": "kraip",
+  "version": "0.1.0",
+  "description": "KRAIP - AI employees that talk to customers, qualify leads and help businesses take action",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "check": "node scripts/check-syntax.js",
+    "test": "npm run check && node --test --test-concurrency=1 \"tests/*.test.js\"",
+    "voice-check": "node scripts/voice-check.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.5.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "ws": "^8.22.0"
+  }
+}
